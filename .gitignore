@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.DS_Store
+.env
+.env.*
+!.env.example
+*.pem
+secrets.json
+credentials.json
+.reelly/
+.venv/
+venv/
+web/node_modules/

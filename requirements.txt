@@ -1,0 +1,3 @@
+requests
+astral>=3.2
+timezonefinder>=6.0
