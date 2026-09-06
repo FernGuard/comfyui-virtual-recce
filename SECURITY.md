@@ -1,20 +1,26 @@
 # Security
 
-## API keys
+## API keys and account access
 
-This pack does not ship API keys. Never put keys, tokens, or credentials in
-this repository, in issues, pull requests, or committed ComfyUI workflow JSON.
+This repository ships no API keys, tokens, passwords, or account credentials.
 
-Paste keys into the Recce node widgets (or export them in your own shell).
-The nodes fail if a required key is missing. They do not print key values.
+The current workflow needs:
 
-Google Maps keys are billed to **your** accounts.
+- a Google Maps Platform key entered into the `Recce · Google Maps Key` widget;
+- a ComfyUI account login and prepaid credits handled by ComfyUI for its built-in Gemini Partner Nodes.
+
+This pack does not load `.env` files and does not read a Maps key from the shell environment. Paste the Maps key into the widget only when you are ready to run.
+
+ComfyUI can serialize widget values into workflow JSON. Before saving, exporting, committing, uploading, or sharing a workflow:
+
+1. clear the Maps key widget;
+2. save the sanitized workflow;
+3. inspect the JSON if it will be published.
+
+Restrict the Maps key to **Geocoding API** and **Street View Static API**. Monitor its usage and quotas. If a credential is ever committed, rotate it immediately and remove it from reachable Git history.
+
+The nodes do not print credential values.
 
 ## Reporting a vulnerability
 
-Please use GitHub's private vulnerability reporting on this repository
-(Security → Report a vulnerability). Do not open a public issue for a
-suspected secret leak.
-
-If you find a key in git history, report it privately and rotate the key
-immediately.
+Use GitHub's private vulnerability reporting for this repository. Do not open a public issue containing a suspected key, token, private path, or exploit detail.

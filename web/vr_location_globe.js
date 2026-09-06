@@ -1,12 +1,13 @@
-// Virtual Recce — interactive 3D globe widget for the Location Picker node.
+// Virtual Recce - interactive 3D globe widget for the Location Picker node.
 // Drag to spin the globe, click a spot to drop a coordinate. The marker and the
-// latitude/longitude widgets stay in sync both ways; clicking clears `address`
-// so the clicked point wins in 'auto' mode.
+// latitude/longitude widgets stay in sync both ways. Clicking switches the node
+// to coordinate mode so the selected point wins without deleting the saved address.
 import { app } from "../../scripts/app.js";
 
-const GLOBE_ESM = "https://esm.sh/globe.gl@2?bundle";
-const EARTH_TEX = "https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg";
-const BUMP_TEX  = "https://unpkg.com/three-globe/example/img/earth-topology.png";
+const VENDOR_BASE = new URL("./vendor/", import.meta.url);
+const GLOBE_ESM = new URL("globe.gl-2.46.2.bundle.mjs", VENDOR_BASE).href;
+const EARTH_TEX = new URL("earth-blue-marble.jpg", VENDOR_BASE).href;
+const BUMP_TEX = new URL("earth-topology.png", VENDOR_BASE).href;
 
 let globePromise = null;
 function loadGlobe() {

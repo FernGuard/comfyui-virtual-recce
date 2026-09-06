@@ -1,5 +1,5 @@
 """
-Virtual Recce — custom ComfyUI nodes for data-grounded location scouting.
+Virtual Recce - custom ComfyUI nodes for data-grounded location scouting.
 
 Turns a real address into a real reference plate (Google Street View), grounded
 in the REAL sun position and REAL weather for a given date/time, then builds a
@@ -38,6 +38,17 @@ def _require(mod_name, pip_name=None):
             f"Virtual Recce needs the '{pip_name or mod_name}' package. "
             f"Install with:  pip install {pip_name or mod_name}"
         ) from e
+
+
+def _safe_get(requests, url, params, timeout, label):
+    """Run a GET without allowing credential-bearing URLs into tracebacks."""
+    try:
+        return requests.get(url, params=params, timeout=timeout)
+    except Exception as exc:
+        raise RuntimeError(
+            f"{label}: request failed ({type(exc).__name__}). "
+            "Check network access and provider status."
+        ) from None
 
 
 def _pil_to_tensor(img: Image.Image) -> torch.Tensor:
@@ -90,15 +101,22 @@ class VRGeocodeAddress:
                 "Geocode: paste a Google Maps API key (Geocoding API enabled). "
                 "Create one: https://console.cloud.google.com/apis/credentials"
             )
-        r = requests.get(
+        r = _safe_get(
+            requests,
             "https://maps.googleapis.com/maps/api/geocode/json",
-            params={"address": address, "key": google_api_key.strip()},
-            timeout=30,
+            {"address": address, "key": google_api_key.strip()},
+            30,
+            "Geocode",
         )
-        data = r.json()
+        try:
+            data = r.json()
+        except Exception:
+            raise RuntimeError("Geocode: provider returned an invalid response.") from None
         if data.get("status") != "OK" or not data.get("results"):
-            raise RuntimeError(f"Geocode failed: {data.get('status')} "
-                               f"{data.get('error_message', '')}".strip())
+            raise RuntimeError(
+                f"Geocode failed: {data.get('status', 'UNKNOWN')}. "
+                "Check billing, API enablement, key restrictions, and the address."
+            )
         top = data["results"][0]
         loc = top["geometry"]["location"]
         return (float(loc["lat"]), float(loc["lng"]), top.get("formatted_address", address))
@@ -139,27 +157,36 @@ class VRStreetViewReference:
         loc = f"{latitude},{longitude}"
         key = google_api_key.strip()
 
-        # metadata check first (free) — avoids paying for a grey "no imagery" tile
-        meta = requests.get(
+        # metadata check first (free) - avoids paying for a grey "no imagery" tile
+        meta_response = _safe_get(
+            requests,
             "https://maps.googleapis.com/maps/api/streetview/metadata",
-            params={"location": loc, "key": key}, timeout=30,
-        ).json()
+            {"location": loc, "key": key},
+            30,
+            "Street View metadata",
+        )
+        try:
+            meta = meta_response.json()
+        except Exception:
+            raise RuntimeError("Street View metadata: provider returned an invalid response.") from None
         if meta.get("status") != "OK":
             return (_blank_tensor(width, height),
                     f"No Street View imagery at this location (status: {meta.get('status')}).")
 
-        r = requests.get(
+        r = _safe_get(
+            requests,
             "https://maps.googleapis.com/maps/api/streetview",
-            params={"location": loc, "size": f"{width}x{height}", "heading": heading,
-                    "pitch": pitch, "fov": fov, "key": key, "return_error_code": "true"},
-            timeout=60,
+            {"location": loc, "size": f"{width}x{height}", "heading": heading,
+             "pitch": pitch, "fov": fov, "key": key, "return_error_code": "true"},
+            60,
+            "Street View image",
         )
         if r.status_code != 200 or "image" not in r.headers.get("Content-Type", ""):
-            raise RuntimeError(f"Street View fetch failed ({r.status_code}): {r.text[:200]}")
+            raise RuntimeError(f"Street View fetch failed (HTTP {r.status_code}).")
         img = Image.open(io.BytesIO(r.content))
         date = meta.get("date", "unknown")
         return (_pil_to_tensor(img),
-                f"OK — imagery {date}, heading {heading:.0f}° ({_compass(heading)}).")
+                f"OK - imagery {date}, heading {heading:.0f}° ({_compass(heading)}).")
 
 
 # --------------------------------------------------------------------------- #
@@ -264,7 +291,7 @@ class VRLocationWeather:
             "latitude": ("FLOAT", {"default": 34.1184, "min": -90.0, "max": 90.0, "step": 0.000001}),
             "longitude": ("FLOAT", {"default": -118.3004, "min": -180.0, "max": 180.0, "step": 0.000001}),
             "date": ("STRING", {"default": "", "tooltip": "YYYY-MM-DD, or blank = today"}),
-            "time": ("STRING", {"default": "17:30"}),
+            "time": ("STRING", {"default": "17:30", "tooltip": "HH:MM 24h, or blank = 12:00 if used without Shoot Time"}),
         }}
 
     RETURN_TYPES = ("STRING", "FLOAT")
@@ -277,13 +304,15 @@ class VRLocationWeather:
         try:
             day = date.strip() or _dt.date.today().isoformat()
             hour = int(time.strip().split(":")[0]) if time.strip() else 12
-            r = requests.get(
+            r = _safe_get(
+                requests,
                 "https://api.open-meteo.com/v1/forecast",
-                params={"latitude": latitude, "longitude": longitude,
-                        "hourly": "cloud_cover,weather_code",
-                        "start_date": day, "end_date": day,
-                        "timezone": "auto"},
-                timeout=30,
+                {"latitude": latitude, "longitude": longitude,
+                 "hourly": "cloud_cover,weather_code",
+                 "start_date": day, "end_date": day,
+                 "timezone": "auto"},
+                30,
+                "Weather",
             ).json()
             hourly = r.get("hourly", {})
             codes = hourly.get("weather_code", [])
@@ -307,11 +336,11 @@ class VRReccePromptBuilder:
     """Gather the grounded facts (location, real light, real weather, set, cast,
     references) into ONE clearly-labeled brief.
 
-    Feed this brief either straight into an image model, or — to make it sing —
-    into a text LLM (e.g. the Google Gemini node) with a 'write a short cinematic
-    scene' system prompt, then send the LLM's story to the image model. The
-    labeled sections are designed to be easy for an LLM to turn into a story
-    while keeping every concrete visual fact.
+    Feed this brief straight into an image model, or send it first to a text LLM
+    (e.g. the Google Gemini node) with a 'write a short cinematic scene' system
+    prompt. Then send the LLM's story to the image model. The labeled sections
+    are designed to be easy for an LLM to turn into a story while keeping every
+    concrete visual fact.
     """
 
     @classmethod
@@ -327,7 +356,7 @@ class VRReccePromptBuilder:
             "direction": ("STRING", {"multiline": True, "default": "",
                 "tooltip": ("Optional genre / tone / beat to steer the story "
                             "(e.g. 'fantasy last stand', 'noir stakeout'). The CAST "
-                            "comes from the Set & Cast node's actor names — leave this "
+                            "comes from the Set & Cast node's actor names. Leave this "
                             "blank to let the story emerge from the references + real data.")}),
             "camera_and_style": ("STRING", {"multiline": True,
                 "default": "cinematic, anamorphic, shallow depth of field, film grain"}),
@@ -379,6 +408,7 @@ class VRGoogleMapsKey:
             "google_api_key": ("STRING", {
                 "default": "",
                 "multiline": False,
+                "password": True,
                 "tooltip": ("One Maps key with Geocoding + Street View Static "
                             "enabled. Wire the output into every node's "
                             "google_api_key input."),
@@ -402,17 +432,19 @@ class VRShootTime:
     """One shoot date/time, fanned out to Sun Position and Weather so the two
     never drift apart. Wire both outputs into each node's date/time inputs.
 
-    Blank date = today, blank time = now — which also keeps Weather inside
-    Open-Meteo's forecast window (far-future dates return no weather).
+    Blank date and time are resolved once from the ComfyUI host clock. This keeps
+    Weather and Sun Position on the same explicit values. For a remote location,
+    enter the destination's date explicitly if it differs from the host date.
     """
 
     @classmethod
     def INPUT_TYPES(cls):
         return {"required": {
             "date": ("STRING", {"default": "", "tooltip": (
-                "YYYY-MM-DD, or blank = today. For REAL weather, use a date "
-                "within ~16 days (Open-Meteo forecast range).")}),
-            "time": ("STRING", {"default": "17:30", "tooltip": "HH:MM 24h local, or blank = now."}),
+                "YYYY-MM-DD, or blank = the ComfyUI host's current date. For REAL "
+                "weather, use a date within ~16 days (Open-Meteo forecast range).")}),
+            "time": ("STRING", {"default": "17:30", "tooltip": (
+                "HH:MM 24h local, or blank = the ComfyUI host's current time.")}),
         }}
 
     RETURN_TYPES = ("STRING", "STRING")
@@ -421,11 +453,14 @@ class VRShootTime:
     CATEGORY = "Virtual Recce"
 
     def provide(self, date, time):
-        return (date.strip(), time.strip())
+        now = _dt.datetime.now().astimezone()
+        resolved_date = date.strip() or now.date().isoformat()
+        resolved_time = time.strip() or now.strftime("%H:%M")
+        return (resolved_date, resolved_time)
 
 
 # --------------------------------------------------------------------------- #
-# 8. Location Picker (3D globe) — address <-> coordinates, whichever you set
+# 8. Location Picker (3D globe) - address <-> coordinates, whichever you set
 # --------------------------------------------------------------------------- #
 
 class VRLocationPicker:
@@ -438,7 +473,8 @@ class VRLocationPicker:
 
     The globe (a frontend widget shipped in ./web) keeps its marker and the
     latitude/longitude widgets in sync live: drag to spin, click to drop a point.
-    Clicking the globe clears `address` so the clicked coordinates win in 'auto'.
+    Clicking the globe switches `input_mode` to `coordinates` so the clicked
+    point wins without deleting the saved address.
     """
 
     @classmethod
@@ -464,16 +500,25 @@ class VRLocationPicker:
         if use_address:
             if not key:
                 raise RuntimeError(
-                "Location Picker: paste a Google Maps API key (Geocoding API enabled). "
-                "Create one: https://console.cloud.google.com/apis/credentials"
-            )
-            r = requests.get(
+                    "Location Picker: paste a Google Maps API key (Geocoding API enabled). "
+                    "Create one: https://console.cloud.google.com/apis/credentials"
+                )
+            response = _safe_get(
+                requests,
                 "https://maps.googleapis.com/maps/api/geocode/json",
-                params={"address": address, "key": key}, timeout=30,
-            ).json()
+                {"address": address, "key": key},
+                30,
+                "Location Picker",
+            )
+            try:
+                r = response.json()
+            except Exception:
+                raise RuntimeError("Location Picker: provider returned an invalid response.") from None
             if r.get("status") != "OK" or not r.get("results"):
-                raise RuntimeError(f"Geocode failed: {r.get('status')} "
-                                   f"{r.get('error_message', '')}".strip())
+                raise RuntimeError(
+                    f"Location Picker geocode failed: {r.get('status', 'UNKNOWN')}. "
+                    "Check billing, API enablement, key restrictions, and the address."
+                )
             top = r["results"][0]
             loc = top["geometry"]["location"]
             return (float(loc["lat"]), float(loc["lng"]), top.get("formatted_address", address))
@@ -482,10 +527,14 @@ class VRLocationPicker:
         formatted = f"{latitude:.6f}, {longitude:.6f}"
         if key:
             try:
-                r = requests.get(
+                response = _safe_get(
+                    requests,
                     "https://maps.googleapis.com/maps/api/geocode/json",
-                    params={"latlng": f"{latitude},{longitude}", "key": key}, timeout=30,
-                ).json()
+                    {"latlng": f"{latitude},{longitude}", "key": key},
+                    30,
+                    "Location Picker reverse geocode",
+                )
+                r = response.json()
                 if r.get("status") == "OK" and r.get("results"):
                     formatted = r["results"][0].get("formatted_address", formatted)
             except Exception:  # noqa
@@ -494,7 +543,7 @@ class VRLocationPicker:
 
 
 # --------------------------------------------------------------------------- #
-# 9. Set & Cast — bundle plate + set-dressing + actor refs for a multi-image model
+# 9. Set & Cast - bundle plate + set-dressing + actor refs for a multi-image model
 # --------------------------------------------------------------------------- #
 
 class VRSetAndCast:
@@ -544,11 +593,11 @@ class VRSetAndCast:
             notes.append(f"image {idx} = {label}")
             idx += 1
 
-        add(plate, "the REAL location plate — preserve its architecture, layout, "
+        add(plate, "the REAL location plate: preserve its architecture, layout, "
                    "horizon and camera perspective")
-        add(background_set, "set-dressing reference — apply this styling and props to the location")
-        add(actor_1, f"{actor_1_name.strip() or 'the first actor'} — place this person into the scene")
-        add(actor_2, f"{actor_2_name.strip() or 'the second actor'} — place this person into the scene")
+        add(background_set, "set-dressing reference: apply this styling and props to the location")
+        add(actor_1, f"{actor_1_name.strip() or 'the first actor'}: place this person into the scene")
+        add(actor_2, f"{actor_2_name.strip() or 'the second actor'}: place this person into the scene")
 
         if not items:
             raise RuntimeError("Set & Cast: connect at least one image (plate / background / actor).")

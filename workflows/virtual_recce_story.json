@@ -1,6 +1,6 @@
 {
-  "last_node_id": 12,
-  "last_link_id": 18,
+  "last_node_id": 14,
+  "last_link_id": 25,
   "nodes": [
     {
       "id": 1,
@@ -11,9 +11,7 @@
       "order": 0,
       "mode": 0,
       "inputs": [],
-      "outputs": [
-        {"name": "google_api_key", "type": "STRING", "links": [1, 2]}
-      ],
+      "outputs": [{"name": "google_api_key", "type": "STRING", "links": [1, 2]}],
       "properties": {"Node name for S&R": "VRGoogleMapsKey"},
       "widgets_values": [""]
     },
@@ -31,10 +29,26 @@
       "outputs": [
         {"name": "latitude", "type": "FLOAT", "links": [3, 5, 7]},
         {"name": "longitude", "type": "FLOAT", "links": [4, 6, 8]},
-        {"name": "formatted_address", "type": "STRING", "links": null}
+        {"name": "formatted_address", "type": "STRING", "links": [19]}
       ],
       "properties": {"Node name for S&R": "VRLocationPicker"},
       "widgets_values": ["Griffith Observatory, Los Angeles, CA", 34.1184, -118.3004, "auto", ""]
+    },
+    {
+      "id": 14,
+      "type": "VRShootTime",
+      "pos": [480, 780],
+      "size": [340, 90],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {"name": "date", "type": "STRING", "links": [22, 24]},
+        {"name": "time", "type": "STRING", "links": [23, 25]}
+      ],
+      "properties": {"Node name for S&R": "VRShootTime"},
+      "widgets_values": ["", "17:30"]
     },
     {
       "id": 3,
@@ -42,7 +56,7 @@
       "pos": [480, 120],
       "size": [340, 260],
       "flags": {},
-      "order": 2,
+      "order": 3,
       "mode": 0,
       "inputs": [
         {"name": "latitude", "type": "FLOAT", "link": 3},
@@ -62,11 +76,13 @@
       "pos": [480, 430],
       "size": [340, 150],
       "flags": {},
-      "order": 3,
+      "order": 4,
       "mode": 0,
       "inputs": [
         {"name": "latitude", "type": "FLOAT", "link": 5},
-        {"name": "longitude", "type": "FLOAT", "link": 6}
+        {"name": "longitude", "type": "FLOAT", "link": 6},
+        {"name": "date", "type": "STRING", "link": 22, "widget": {"name": "date"}},
+        {"name": "time", "type": "STRING", "link": 23, "widget": {"name": "time"}}
       ],
       "outputs": [
         {"name": "azimuth", "type": "FLOAT", "links": null},
@@ -75,26 +91,28 @@
         {"name": "light_description", "type": "STRING", "links": [13]}
       ],
       "properties": {"Node name for S&R": "VRSunPosition"},
-      "widgets_values": [34.1184, -118.3004, "2026-10-03", "17:30", "auto"]
+      "widgets_values": [34.1184, -118.3004, "", "17:30", "auto"]
     },
     {
       "id": 5,
       "type": "VRLocationWeather",
-      "pos": [480, 630],
+      "pos": [480, 610],
       "size": [340, 120],
       "flags": {},
-      "order": 4,
+      "order": 5,
       "mode": 0,
       "inputs": [
         {"name": "latitude", "type": "FLOAT", "link": 7},
-        {"name": "longitude", "type": "FLOAT", "link": 8}
+        {"name": "longitude", "type": "FLOAT", "link": 8},
+        {"name": "date", "type": "STRING", "link": 24, "widget": {"name": "date"}},
+        {"name": "time", "type": "STRING", "link": 25, "widget": {"name": "time"}}
       ],
       "outputs": [
         {"name": "weather_description", "type": "STRING", "links": [14]},
         {"name": "cloud_cover_pct", "type": "FLOAT", "links": null}
       ],
       "properties": {"Node name for S&R": "VRLocationWeather"},
-      "widgets_values": [34.1184, -118.3004, "2026-10-03", "17:30"]
+      "widgets_values": [34.1184, -118.3004, "", "17:30"]
     },
     {
       "id": 10,
@@ -102,7 +120,7 @@
       "pos": [60, 900],
       "size": [260, 300],
       "flags": {},
-      "order": 5,
+      "order": 6,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -110,7 +128,7 @@
         {"name": "MASK", "type": "MASK", "links": null}
       ],
       "properties": {"Node name for S&R": "LoadImage"},
-      "widgets_values": ["VR_placeholder_background_set.png", "image"]
+      "widgets_values": ["ref_env_scifi_lab.png", "image"]
     },
     {
       "id": 11,
@@ -118,7 +136,7 @@
       "pos": [340, 900],
       "size": [260, 300],
       "flags": {},
-      "order": 6,
+      "order": 7,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -126,7 +144,7 @@
         {"name": "MASK", "type": "MASK", "links": null}
       ],
       "properties": {"Node name for S&R": "LoadImage"},
-      "widgets_values": ["VR_placeholder_actor_1.png", "image"]
+      "widgets_values": ["ref_char_hero.png", "image"]
     },
     {
       "id": 12,
@@ -134,7 +152,7 @@
       "pos": [620, 900],
       "size": [260, 300],
       "flags": {},
-      "order": 7,
+      "order": 8,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -142,7 +160,7 @@
         {"name": "MASK", "type": "MASK", "links": null}
       ],
       "properties": {"Node name for S&R": "LoadImage"},
-      "widgets_values": ["VR_placeholder_actor_2.png", "image"]
+      "widgets_values": ["ref_char_woman.png", "image"]
     },
     {
       "id": 6,
@@ -150,7 +168,7 @@
       "pos": [900, 560],
       "size": [340, 220],
       "flags": {},
-      "order": 8,
+      "order": 9,
       "mode": 0,
       "inputs": [
         {"name": "plate", "type": "IMAGE", "link": 9},
@@ -163,41 +181,61 @@
         {"name": "reference_notes", "type": "STRING", "links": [15]}
       ],
       "properties": {"Node name for S&R": "VRSetAndCast"},
-      "widgets_values": [1024, "the lead detective", "the second lead"]
+      "widgets_values": [1024, "the hero", "the woman"]
     },
     {
       "id": 7,
       "type": "VRReccePromptBuilder",
       "pos": [900, 120],
-      "size": [360, 320],
+      "size": [360, 260],
       "flags": {},
-      "order": 9,
+      "order": 10,
       "mode": 0,
       "inputs": [
         {"name": "light_description", "type": "STRING", "link": 13},
+        {"name": "location", "type": "STRING", "link": 19},
         {"name": "weather_description", "type": "STRING", "link": 14},
         {"name": "reference_notes", "type": "STRING", "link": 15}
       ],
-      "outputs": [
-        {"name": "prompt", "type": "STRING", "links": [17]}
-      ],
+      "outputs": [{"name": "prompt", "type": "STRING", "links": [20]}],
       "properties": {"Node name for S&R": "VRReccePromptBuilder"},
+      "widgets_values": ["", "", "", "cinematic, anamorphic, shallow depth of field, film grain"]
+    },
+    {
+      "id": 13,
+      "type": "GeminiNodeV2",
+      "pos": [1300, 120],
+      "size": [380, 340],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {"name": "prompt", "type": "STRING", "link": 20}
+      ],
+      "outputs": [{"name": "STRING", "type": "STRING", "links": [21]}],
+      "properties": {"Node name for S&R": "GeminiNodeV2"},
       "widgets_values": [
-        "dressed as a 1970s film set, period vehicles, film crew equipment",
-        "a lone detective in a tan trench coat standing center frame",
-        "cinematic, anamorphic, shallow depth of field, film grain"
+        "",
+        "Gemini 3.1 Pro",
+        "HIGH",
+        1.0,
+        0.95,
+        32768,
+        42,
+        "fixed",
+        "You are a film director and cinematographer. You are given a labeled brief: a REAL location, the REAL sunlight and REAL weather at a specific time, an optional DIRECTION / GENRE, and a 'CAST & SET (reference images):' line naming the cast and set references. Write ONE vivid cinematic scene: a single short paragraph (2 to 4 sentences) describing a specific dramatic MOMENT at this location. Use the cast NAMED in the 'CAST & SET' line as the characters and put them in concrete physical action. Honor the EXACT lighting direction and weather. Choose a tone, genre and photographic style that fit the DIRECTION / GENRE if given, otherwise infer a fitting one from the cast and setting. Then, on a NEW line, copy the 'CAST & SET (reference images):' line from the brief verbatim so the image model knows which reference is which. Output only the final prompt, nothing else."
       ]
     },
     {
       "id": 8,
       "type": "GeminiImage2Node",
-      "pos": [1320, 120],
+      "pos": [1720, 120],
       "size": [360, 300],
       "flags": {},
-      "order": 10,
+      "order": 12,
       "mode": 0,
       "inputs": [
-        {"name": "prompt", "type": "STRING", "link": 17},
+        {"name": "prompt", "type": "STRING", "link": 21},
         {"name": "images", "type": "IMAGE", "link": 16}
       ],
       "outputs": [
@@ -210,17 +248,17 @@
     {
       "id": 9,
       "type": "SaveImage",
-      "pos": [1740, 120],
+      "pos": [2120, 120],
       "size": [400, 400],
       "flags": {},
-      "order": 11,
+      "order": 13,
       "mode": 0,
       "inputs": [
         {"name": "images", "type": "IMAGE", "link": 18}
       ],
       "outputs": [],
       "properties": {"Node name for S&R": "SaveImage"},
-      "widgets_values": ["VirtualRecce_v2"]
+      "widgets_values": ["VirtualRecce_story"]
     }
   ],
   "links": [
@@ -237,17 +275,23 @@
     [11, 11, 0, 6, 2, "IMAGE"],
     [12, 12, 0, 6, 3, "IMAGE"],
     [13, 4, 3, 7, 0, "STRING"],
-    [14, 5, 0, 7, 1, "STRING"],
-    [15, 6, 1, 7, 2, "STRING"],
+    [19, 2, 2, 7, 1, "STRING"],
+    [14, 5, 0, 7, 2, "STRING"],
+    [15, 6, 1, 7, 3, "STRING"],
+    [20, 7, 0, 13, 0, "STRING"],
+    [21, 13, 0, 8, 0, "STRING"],
     [16, 6, 0, 8, 1, "IMAGE"],
-    [17, 7, 0, 8, 0, "STRING"],
-    [18, 8, 0, 9, 0, "IMAGE"]
+    [18, 8, 0, 9, 0, "IMAGE"],
+    [22, 14, 0, 4, 2, "STRING"],
+    [23, 14, 1, 4, 3, "STRING"],
+    [24, 14, 0, 5, 2, "STRING"],
+    [25, 14, 1, 5, 3, "STRING"]
   ],
   "groups": [
     {"title": "1 · Pick location (globe or address)", "bounding": [40, 60, 400, 780], "color": "#3f789e"},
-    {"title": "2 · Real plate + real sun/weather", "bounding": [460, 60, 380, 700], "color": "#8e44ad"},
-    {"title": "3 · Set & cast (upload your 3 images)", "bounding": [40, 840, 850, 380], "color": "#b58b00"},
-    {"title": "4 · Dress the plate → save", "bounding": [880, 60, 1280, 480], "color": "#417505"}
+    {"title": "2 · Real plate + real sun/weather (one shoot time)", "bounding": [460, 60, 380, 820], "color": "#8e44ad"},
+    {"title": "3 · Set & cast references", "bounding": [40, 900, 850, 320], "color": "#b58b00"},
+    {"title": "4 · Facts → Gemini writes the story → dress → save", "bounding": [880, 60, 1660, 520], "color": "#417505"}
   ],
   "config": {},
   "extra": {},
