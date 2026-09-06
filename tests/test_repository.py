@@ -151,6 +151,29 @@ class RuntimeSafetyTests(unittest.TestCase):
             ("2030-01-02", "09:45"),
         )
 
+    def test_weather_failure_does_not_include_exception_text(self) -> None:
+        class ExplodingRequests:
+            @staticmethod
+            def get(url, params, timeout):
+                raise RuntimeError("secret weather detail")
+
+        original_require = self.nodes._require
+
+        def fake_require(mod_name, pip_name=None):
+            if mod_name == "requests":
+                return ExplodingRequests
+            return original_require(mod_name, pip_name)
+
+        setattr(self.nodes, "_require", fake_require)
+        try:
+            description, cloud = self.nodes.VRLocationWeather().fetch(34.1, -118.3, "2026-09-05", "17:30")
+        finally:
+            setattr(self.nodes, "_require", original_require)
+
+        self.assertEqual(description, "weather unavailable.")
+        self.assertEqual(cloud, 0.0)
+        self.assertNotIn("secret weather detail", description)
+
 
 class RepositoryStructureTests(unittest.TestCase):
     def test_exactly_one_comfyui_workflow(self) -> None:

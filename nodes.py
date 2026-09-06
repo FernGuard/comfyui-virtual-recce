@@ -324,8 +324,8 @@ class VRLocationWeather:
             cloud = float(clouds[idx]) if idx < len(clouds) else 0.0
             desc = _WMO.get(code, "unknown conditions")
             return (f"{desc}, {cloud:.0f}% cloud cover.", cloud)
-        except Exception as e:  # noqa
-            return (f"weather unavailable ({e}).", 0.0)
+        except Exception:
+            return ("weather unavailable.", 0.0)
 
 
 # --------------------------------------------------------------------------- #
