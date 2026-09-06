@@ -32,7 +32,7 @@ This document is the source of truth for the workflow shipped in this repository
 | Bundled credentials | None |
 | Local model downloads | None required by the supplied workflow |
 | Paid services | Google Maps Platform usage and ComfyUI Partner Node credits |
-| Repository visibility during this cleanup | Private |
+| Repository visibility | Private |
 | End-to-end paid run | Not performed without user-supplied credentials and credits |
 
 The repository is structurally ready to install and open. The workflow, node registrations, reference filenames, Python files, and frontend extension are checked without storing or using private credentials. A complete paid run still depends on the user's Maps key, ComfyUI login, available credits, internet access, and current provider availability.
@@ -115,12 +115,7 @@ Use a current ComfyUI version. The workflow requires these built-in node IDs:
 
 The last two are built-in ComfyUI Partner Nodes, not nodes supplied by this repository and not a separate custom-node package.
 
-The verified local baseline for this cleanup was:
-
-- ComfyUI `0.34.2`
-- ComfyUI frontend `1.49.6`
-
-This is a verified baseline, not a promise that every older release works. ComfyUI's official Partner Node documentation recommends keeping ComfyUI current. If either Gemini node is missing, update ComfyUI before troubleshooting this pack.
+A local open-and-validate check was run against ComfyUI `0.34.2` with frontend `1.49.6`. That is a verified baseline, not a promise that every older release works. ComfyUI's official Partner Node documentation recommends keeping ComfyUI current. If either Gemini node is missing, update ComfyUI before troubleshooting this pack.
 
 Official references:
 
@@ -135,8 +130,9 @@ The pack installs these dependencies from `requirements.txt`:
 - `requests`
 - `astral>=3.2`
 - `timezonefinder>=6.0`
+- `tzdata`
 
-ComfyUI already provides Python, PyTorch, NumPy, and Pillow.
+`tzdata` supplies IANA timezone data on Windows, where the OS does not include it. ComfyUI already provides Python, PyTorch, NumPy, and Pillow.
 
 ### 4.3 Accounts and paid access
 
@@ -158,6 +154,8 @@ Internet access is required for:
 - Google Street View Static API;
 - Open-Meteo;
 - ComfyUI Partner Nodes.
+
+ComfyUI Partner Node login normally works from `localhost` or `127.0.0.1`. A LAN, remote, or non-whitelisted origin may need a ComfyUI Account API Key and HTTPS. Do not start ComfyUI with `--disable-api-nodes` if you need the Gemini nodes in this workflow.
 
 The globe module and earth textures are bundled in `web/vendor/` and do not require a CDN.
 
@@ -522,14 +520,15 @@ Fix:
 
 ### Gemini nodes are missing or red
 
-Cause: ComfyUI is outdated or its built-in API nodes failed to import.
+Cause: ComfyUI is outdated, started with `--disable-api-nodes`, or its built-in API nodes failed to import.
 
 Fix:
 
 1. Update ComfyUI.
 2. Restart it.
 3. Search the canvas for `Google Gemini` and `Nano Banana Pro`.
-4. Do not install an unrelated Gemini custom-node pack for these node IDs.
+4. Confirm ComfyUI was not launched with `--disable-api-nodes`.
+5. Do not install an unrelated Gemini custom-node pack for these node IDs.
 
 ### Partner Node asks for login or reports insufficient credits
 
@@ -560,6 +559,10 @@ The selected point may not have Street View coverage. Try a nearby road or a dif
 ### Weather says unavailable
 
 Use today or a date within approximately 16 days. This node does not use the historical archive API.
+
+### Sun Position reports a missing timezone database
+
+Install `tzdata` into ComfyUI's Python environment. Windows does not ship IANA timezone data by default.
 
 ### Load Image reports a missing file
 

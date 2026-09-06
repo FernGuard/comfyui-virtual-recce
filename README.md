@@ -15,7 +15,7 @@ Read **[WORKFLOW_GUIDE.md](WORKFLOW_GUIDE.md)** before opening the workflow. It 
 | Current ComfyUI workflow | `workflows/virtual_recce_story.json` |
 | ComfyUI workflow count | 1 |
 | Required test/reference images | 3 files in `examples/` |
-| API keys or credentials | No |
+| Bundled API keys or credentials | None |
 | Historical or intermediate workflows | No |
 
 All nine Virtual Recce nodes remain in the pack. The cleanup removed obsolete workflow files, not node functionality.
