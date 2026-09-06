@@ -7,8 +7,8 @@ generation prompt so you can dress the location with your set and characters in
 the correct light.
 
 Node chain:
-  Geocode Address -> Street View Reference -> (Sun Position + Weather)
-                  -> Recce Prompt Builder -> [your img2img/ControlNet]
+  Location Picker / Geocode -> Street View Reference -> (Sun Position + Weather)
+                  -> Set & Cast -> Recce Prompt Builder -> [your img2img]
 
 External services (bring your own keys):
   - Google Maps Platform (Geocoding + Street View Static + metadata)
@@ -263,7 +263,7 @@ class VRLocationWeather:
         return {"required": {
             "latitude": ("FLOAT", {"default": 34.1184, "min": -90.0, "max": 90.0, "step": 0.000001}),
             "longitude": ("FLOAT", {"default": -118.3004, "min": -180.0, "max": 180.0, "step": 0.000001}),
-            "date": ("STRING", {"default": "2026-10-03"}),
+            "date": ("STRING", {"default": "", "tooltip": "YYYY-MM-DD, or blank = today"}),
             "time": ("STRING", {"default": "17:30"}),
         }}
 
@@ -275,12 +275,13 @@ class VRLocationWeather:
     def fetch(self, latitude, longitude, date, time):
         requests = _require("requests")
         try:
+            day = date.strip() or _dt.date.today().isoformat()
             hour = int(time.strip().split(":")[0]) if time.strip() else 12
             r = requests.get(
                 "https://api.open-meteo.com/v1/forecast",
                 params={"latitude": latitude, "longitude": longitude,
                         "hourly": "cloud_cover,weather_code",
-                        "start_date": date.strip(), "end_date": date.strip(),
+                        "start_date": day, "end_date": day,
                         "timezone": "auto"},
                 timeout=30,
             ).json()
@@ -303,18 +304,31 @@ class VRLocationWeather:
 # --------------------------------------------------------------------------- #
 
 class VRReccePromptBuilder:
-    """Combine location + set + character + real light + weather into one prompt."""
+    """Gather the grounded facts (location, real light, real weather, set, cast,
+    references) into ONE clearly-labeled brief.
+
+    Feed this brief either straight into an image model, or — to make it sing —
+    into a text LLM (e.g. the Google Gemini node) with a 'write a short cinematic
+    scene' system prompt, then send the LLM's story to the image model. The
+    labeled sections are designed to be easy for an LLM to turn into a story
+    while keeping every concrete visual fact.
+    """
 
     @classmethod
     def INPUT_TYPES(cls):
         return {"required": {
-            "set_description": ("STRING", {"multiline": True,
-                "default": "dressed as a 1970s film set, period vehicles, film crew equipment"}),
-            "character_description": ("STRING", {"multiline": True,
-                "default": "a lone detective in a tan trench coat standing center frame"}),
             "light_description": ("STRING", {"forceInput": True}),
         }, "optional": {
+            "location": ("STRING", {"forceInput": True}),
             "weather_description": ("STRING", {"forceInput": True}),
+            "reference_notes": ("STRING", {"forceInput": True}),
+            "set_description": ("STRING", {"multiline": True, "default": ""}),
+            "character_description": ("STRING", {"multiline": True, "default": ""}),
+            "direction": ("STRING", {"multiline": True, "default": "",
+                "tooltip": ("Optional genre / tone / beat to steer the story "
+                            "(e.g. 'fantasy last stand', 'noir stakeout'). The CAST "
+                            "comes from the Set & Cast node's actor names — leave this "
+                            "blank to let the story emerge from the references + real data.")}),
             "camera_and_style": ("STRING", {"multiline": True,
                 "default": "cinematic, anamorphic, shallow depth of field, film grain"}),
         }}
@@ -324,20 +338,27 @@ class VRReccePromptBuilder:
     FUNCTION = "build"
     CATEGORY = "Virtual Recce"
 
-    def build(self, set_description, character_description, light_description,
-              weather_description="", camera_and_style=""):
-        parts = [
-            character_description.strip(),
-            "at this real location," ,
-            set_description.strip() + ".",
-            f"Lighting: {light_description.strip()}",
-        ]
+    def build(self, light_description, location="", weather_description="",
+              reference_notes="", set_description="", character_description="",
+              direction="", camera_and_style=""):
+        lines = []
+        if location.strip():
+            lines.append(f"LOCATION: {location.strip()}")
+        if direction.strip():
+            lines.append(f"DIRECTION / GENRE: {direction.strip()}")
+        if character_description.strip():
+            lines.append(f"CHARACTER: {character_description.strip()}")
+        if set_description.strip():
+            lines.append(f"SET: {set_description.strip()}")
+        if light_description.strip():
+            lines.append(f"REAL LIGHT: {light_description.strip()}")
         if weather_description.strip():
-            parts.append(f"Weather: {weather_description.strip()}")
+            lines.append(f"REAL WEATHER: {weather_description.strip()}")
+        if reference_notes.strip():
+            lines.append(f"CAST & SET (reference images): {reference_notes.strip()}")
         if camera_and_style.strip():
-            parts.append(camera_and_style.strip())
-        prompt = " ".join(p for p in parts if p).replace("  ", " ")
-        return (prompt,)
+            lines.append(f"STYLE: {camera_and_style.strip()}")
+        return ("\n".join(lines),)
 
 
 # --------------------------------------------------------------------------- #
@@ -374,11 +395,180 @@ class VRGoogleMapsKey:
 
 
 # --------------------------------------------------------------------------- #
+# 7b. Shoot Time (one date/time -> fan out to Sun Position + Weather)
+# --------------------------------------------------------------------------- #
+
+class VRShootTime:
+    """One shoot date/time, fanned out to Sun Position and Weather so the two
+    never drift apart. Wire both outputs into each node's date/time inputs.
+
+    Blank date = today, blank time = now — which also keeps Weather inside
+    Open-Meteo's forecast window (far-future dates return no weather).
+    """
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "date": ("STRING", {"default": "", "tooltip": (
+                "YYYY-MM-DD, or blank = today. For REAL weather, use a date "
+                "within ~16 days (Open-Meteo forecast range).")}),
+            "time": ("STRING", {"default": "17:30", "tooltip": "HH:MM 24h local, or blank = now."}),
+        }}
+
+    RETURN_TYPES = ("STRING", "STRING")
+    RETURN_NAMES = ("date", "time")
+    FUNCTION = "provide"
+    CATEGORY = "Virtual Recce"
+
+    def provide(self, date, time):
+        return (date.strip(), time.strip())
+
+
+# --------------------------------------------------------------------------- #
+# 8. Location Picker (3D globe) — address <-> coordinates, whichever you set
+# --------------------------------------------------------------------------- #
+
+class VRLocationPicker:
+    """Pick a location by ADDRESS or by clicking the 3D globe; output coords + address.
+
+    Whichever you set drives (input_mode):
+      - 'auto'        : if `address` is non-empty -> geocode it; else use lat/long.
+      - 'address'     : always geocode `address`.
+      - 'coordinates' : always use lat/long, reverse-geocode to a formatted address.
+
+    The globe (a frontend widget shipped in ./web) keeps its marker and the
+    latitude/longitude widgets in sync live: drag to spin, click to drop a point.
+    Clicking the globe clears `address` so the clicked coordinates win in 'auto'.
+    """
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "address": ("STRING", {"default": "Griffith Observatory, Los Angeles, CA"}),
+            "latitude": ("FLOAT", {"default": 34.1184, "min": -90.0, "max": 90.0, "step": 0.000001}),
+            "longitude": ("FLOAT", {"default": -118.3004, "min": -180.0, "max": 180.0, "step": 0.000001}),
+            "input_mode": (["auto", "address", "coordinates"], {"default": "auto"}),
+            "google_api_key": ("STRING", {"default": ""}),
+        }}
+
+    RETURN_TYPES = ("FLOAT", "FLOAT", "STRING")
+    RETURN_NAMES = ("latitude", "longitude", "formatted_address")
+    FUNCTION = "resolve"
+    CATEGORY = "Virtual Recce"
+
+    def resolve(self, address, latitude, longitude, input_mode, google_api_key):
+        requests = _require("requests")
+        key = google_api_key.strip()
+        use_address = (input_mode == "address") or (input_mode == "auto" and address.strip())
+
+        if use_address:
+            if not key:
+                raise RuntimeError(
+                "Location Picker: paste a Google Maps API key (Geocoding API enabled). "
+                "Create one: https://console.cloud.google.com/apis/credentials"
+            )
+            r = requests.get(
+                "https://maps.googleapis.com/maps/api/geocode/json",
+                params={"address": address, "key": key}, timeout=30,
+            ).json()
+            if r.get("status") != "OK" or not r.get("results"):
+                raise RuntimeError(f"Geocode failed: {r.get('status')} "
+                                   f"{r.get('error_message', '')}".strip())
+            top = r["results"][0]
+            loc = top["geometry"]["location"]
+            return (float(loc["lat"]), float(loc["lng"]), top.get("formatted_address", address))
+
+        # coordinates drive; best-effort reverse geocode for a human-readable address
+        formatted = f"{latitude:.6f}, {longitude:.6f}"
+        if key:
+            try:
+                r = requests.get(
+                    "https://maps.googleapis.com/maps/api/geocode/json",
+                    params={"latlng": f"{latitude},{longitude}", "key": key}, timeout=30,
+                ).json()
+                if r.get("status") == "OK" and r.get("results"):
+                    formatted = r["results"][0].get("formatted_address", formatted)
+            except Exception:  # noqa
+                pass
+        return (float(latitude), float(longitude), formatted)
+
+
+# --------------------------------------------------------------------------- #
+# 9. Set & Cast — bundle plate + set-dressing + actor refs for a multi-image model
+# --------------------------------------------------------------------------- #
+
+class VRSetAndCast:
+    """Bundle the location plate + set-dressing + up to two actor references into
+    ONE image batch for a multi-reference image model (e.g. Nano Banana Pro),
+    plus a prompt fragment that labels each reference so the model composites them.
+
+    Wire `reference_images` into the model's image input and `reference_notes`
+    into the Prompt Builder's `reference_notes` input.
+    """
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "resolution": ("INT", {"default": 1024, "min": 256, "max": 2048, "step": 64,
+                "tooltip": "All references are resized to this square size before batching."}),
+        }, "optional": {
+            "plate": ("IMAGE",),
+            "background_set": ("IMAGE",),
+            "actor_1": ("IMAGE",),
+            "actor_1_name": ("STRING", {"default": "the lead detective"}),
+            "actor_2": ("IMAGE",),
+            "actor_2_name": ("STRING", {"default": "the second lead"}),
+        }}
+
+    RETURN_TYPES = ("IMAGE", "STRING")
+    RETURN_NAMES = ("reference_images", "reference_notes")
+    FUNCTION = "bundle"
+    CATEGORY = "Virtual Recce"
+
+    def _square(self, img, res):
+        import torch.nn.functional as F
+        x = img[0:1].permute(0, 3, 1, 2)  # 1,C,H,W
+        x = F.interpolate(x, size=(res, res), mode="bilinear", align_corners=False)
+        return x.permute(0, 2, 3, 1).clamp(0.0, 1.0)
+
+    def bundle(self, resolution, plate=None, background_set=None,
+               actor_1=None, actor_1_name="the lead detective",
+               actor_2=None, actor_2_name="the second lead"):
+        items, notes, idx = [], [], 1
+
+        def add(img, label):
+            nonlocal idx
+            if img is None:
+                return
+            items.append(self._square(img, resolution))
+            notes.append(f"image {idx} = {label}")
+            idx += 1
+
+        add(plate, "the REAL location plate — preserve its architecture, layout, "
+                   "horizon and camera perspective")
+        add(background_set, "set-dressing reference — apply this styling and props to the location")
+        add(actor_1, f"{actor_1_name.strip() or 'the first actor'} — place this person into the scene")
+        add(actor_2, f"{actor_2_name.strip() or 'the second actor'} — place this person into the scene")
+
+        if not items:
+            raise RuntimeError("Set & Cast: connect at least one image (plate / background / actor).")
+
+        batch = torch.cat(items, dim=0)
+        note = ("Reference images, in order: " + "; ".join(notes) + ". "
+                "Composite the actors and set dressing INTO the real location plate, "
+                "keeping the plate's architecture, layout and camera perspective intact.")
+        return (batch, note)
+
+
+# --------------------------------------------------------------------------- #
 # registration
 # --------------------------------------------------------------------------- #
 
 NODE_CLASS_MAPPINGS = {
     "VRGoogleMapsKey": VRGoogleMapsKey,
+    "VRShootTime": VRShootTime,
+    "VRLocationPicker": VRLocationPicker,
+    "VRSetAndCast": VRSetAndCast,
     "VRGeocodeAddress": VRGeocodeAddress,
     "VRStreetViewReference": VRStreetViewReference,
     "VRSunPosition": VRSunPosition,
@@ -388,6 +578,9 @@ NODE_CLASS_MAPPINGS = {
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "VRGoogleMapsKey": "Recce · Google Maps Key",
+    "VRShootTime": "Recce · Shoot Time",
+    "VRLocationPicker": "Recce · Location Picker (Globe)",
+    "VRSetAndCast": "Recce · Set & Cast",
     "VRGeocodeAddress": "Recce · Geocode Address",
     "VRStreetViewReference": "Recce · Street View Reference",
     "VRSunPosition": "Recce · Sun Position (real light)",

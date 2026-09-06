@@ -1,0 +1,255 @@
+{
+  "last_node_id": 12,
+  "last_link_id": 18,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "VRGoogleMapsKey",
+      "pos": [60, 120],
+      "size": [340, 82],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {"name": "google_api_key", "type": "STRING", "links": [1, 2]}
+      ],
+      "properties": {"Node name for S&R": "VRGoogleMapsKey"},
+      "widgets_values": [""]
+    },
+    {
+      "id": 2,
+      "type": "VRLocationPicker",
+      "pos": [60, 260],
+      "size": [360, 560],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {"name": "google_api_key", "type": "STRING", "link": 1, "widget": {"name": "google_api_key"}}
+      ],
+      "outputs": [
+        {"name": "latitude", "type": "FLOAT", "links": [3, 5, 7]},
+        {"name": "longitude", "type": "FLOAT", "links": [4, 6, 8]},
+        {"name": "formatted_address", "type": "STRING", "links": null}
+      ],
+      "properties": {"Node name for S&R": "VRLocationPicker"},
+      "widgets_values": ["Griffith Observatory, Los Angeles, CA", 34.1184, -118.3004, "auto", ""]
+    },
+    {
+      "id": 3,
+      "type": "VRStreetViewReference",
+      "pos": [480, 120],
+      "size": [340, 260],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {"name": "latitude", "type": "FLOAT", "link": 3},
+        {"name": "longitude", "type": "FLOAT", "link": 4},
+        {"name": "google_api_key", "type": "STRING", "link": 2, "widget": {"name": "google_api_key"}}
+      ],
+      "outputs": [
+        {"name": "reference_image", "type": "IMAGE", "links": [9]},
+        {"name": "status", "type": "STRING", "links": null}
+      ],
+      "properties": {"Node name for S&R": "VRStreetViewReference"},
+      "widgets_values": [34.1184, -118.3004, 150.0, 5.0, 90.0, 640, 640, ""]
+    },
+    {
+      "id": 4,
+      "type": "VRSunPosition",
+      "pos": [480, 430],
+      "size": [340, 150],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {"name": "latitude", "type": "FLOAT", "link": 5},
+        {"name": "longitude", "type": "FLOAT", "link": 6}
+      ],
+      "outputs": [
+        {"name": "azimuth", "type": "FLOAT", "links": null},
+        {"name": "elevation", "type": "FLOAT", "links": null},
+        {"name": "phase", "type": "STRING", "links": null},
+        {"name": "light_description", "type": "STRING", "links": [13]}
+      ],
+      "properties": {"Node name for S&R": "VRSunPosition"},
+      "widgets_values": [34.1184, -118.3004, "2026-10-03", "17:30", "auto"]
+    },
+    {
+      "id": 5,
+      "type": "VRLocationWeather",
+      "pos": [480, 630],
+      "size": [340, 120],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {"name": "latitude", "type": "FLOAT", "link": 7},
+        {"name": "longitude", "type": "FLOAT", "link": 8}
+      ],
+      "outputs": [
+        {"name": "weather_description", "type": "STRING", "links": [14]},
+        {"name": "cloud_cover_pct", "type": "FLOAT", "links": null}
+      ],
+      "properties": {"Node name for S&R": "VRLocationWeather"},
+      "widgets_values": [34.1184, -118.3004, "2026-10-03", "17:30"]
+    },
+    {
+      "id": 10,
+      "type": "LoadImage",
+      "pos": [60, 900],
+      "size": [260, 300],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {"name": "IMAGE", "type": "IMAGE", "links": [10]},
+        {"name": "MASK", "type": "MASK", "links": null}
+      ],
+      "properties": {"Node name for S&R": "LoadImage"},
+      "widgets_values": ["VR_placeholder_background_set.png", "image"]
+    },
+    {
+      "id": 11,
+      "type": "LoadImage",
+      "pos": [340, 900],
+      "size": [260, 300],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {"name": "IMAGE", "type": "IMAGE", "links": [11]},
+        {"name": "MASK", "type": "MASK", "links": null}
+      ],
+      "properties": {"Node name for S&R": "LoadImage"},
+      "widgets_values": ["VR_placeholder_actor_1.png", "image"]
+    },
+    {
+      "id": 12,
+      "type": "LoadImage",
+      "pos": [620, 900],
+      "size": [260, 300],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {"name": "IMAGE", "type": "IMAGE", "links": [12]},
+        {"name": "MASK", "type": "MASK", "links": null}
+      ],
+      "properties": {"Node name for S&R": "LoadImage"},
+      "widgets_values": ["VR_placeholder_actor_2.png", "image"]
+    },
+    {
+      "id": 6,
+      "type": "VRSetAndCast",
+      "pos": [900, 560],
+      "size": [340, 220],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {"name": "plate", "type": "IMAGE", "link": 9},
+        {"name": "background_set", "type": "IMAGE", "link": 10},
+        {"name": "actor_1", "type": "IMAGE", "link": 11},
+        {"name": "actor_2", "type": "IMAGE", "link": 12}
+      ],
+      "outputs": [
+        {"name": "reference_images", "type": "IMAGE", "links": [16]},
+        {"name": "reference_notes", "type": "STRING", "links": [15]}
+      ],
+      "properties": {"Node name for S&R": "VRSetAndCast"},
+      "widgets_values": [1024, "the lead detective", "the second lead"]
+    },
+    {
+      "id": 7,
+      "type": "VRReccePromptBuilder",
+      "pos": [900, 120],
+      "size": [360, 320],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {"name": "light_description", "type": "STRING", "link": 13},
+        {"name": "weather_description", "type": "STRING", "link": 14},
+        {"name": "reference_notes", "type": "STRING", "link": 15}
+      ],
+      "outputs": [
+        {"name": "prompt", "type": "STRING", "links": [17]}
+      ],
+      "properties": {"Node name for S&R": "VRReccePromptBuilder"},
+      "widgets_values": [
+        "dressed as a 1970s film set, period vehicles, film crew equipment",
+        "a lone detective in a tan trench coat standing center frame",
+        "cinematic, anamorphic, shallow depth of field, film grain"
+      ]
+    },
+    {
+      "id": 8,
+      "type": "GeminiImage2Node",
+      "pos": [1320, 120],
+      "size": [360, 300],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {"name": "prompt", "type": "STRING", "link": 17},
+        {"name": "images", "type": "IMAGE", "link": 16}
+      ],
+      "outputs": [
+        {"name": "IMAGE", "type": "IMAGE", "links": [18]},
+        {"name": "STRING", "type": "STRING", "links": null}
+      ],
+      "properties": {"Node name for S&R": "GeminiImage2Node"},
+      "widgets_values": ["", "gemini-3-pro-image-preview", 42, "fixed", "16:9", "2K", "IMAGE"]
+    },
+    {
+      "id": 9,
+      "type": "SaveImage",
+      "pos": [1740, 120],
+      "size": [400, 400],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {"name": "images", "type": "IMAGE", "link": 18}
+      ],
+      "outputs": [],
+      "properties": {"Node name for S&R": "SaveImage"},
+      "widgets_values": ["VirtualRecce_v2"]
+    }
+  ],
+  "links": [
+    [1, 1, 0, 2, 0, "STRING"],
+    [2, 1, 0, 3, 2, "STRING"],
+    [3, 2, 0, 3, 0, "FLOAT"],
+    [4, 2, 1, 3, 1, "FLOAT"],
+    [5, 2, 0, 4, 0, "FLOAT"],
+    [6, 2, 1, 4, 1, "FLOAT"],
+    [7, 2, 0, 5, 0, "FLOAT"],
+    [8, 2, 1, 5, 1, "FLOAT"],
+    [9, 3, 0, 6, 0, "IMAGE"],
+    [10, 10, 0, 6, 1, "IMAGE"],
+    [11, 11, 0, 6, 2, "IMAGE"],
+    [12, 12, 0, 6, 3, "IMAGE"],
+    [13, 4, 3, 7, 0, "STRING"],
+    [14, 5, 0, 7, 1, "STRING"],
+    [15, 6, 1, 7, 2, "STRING"],
+    [16, 6, 0, 8, 1, "IMAGE"],
+    [17, 7, 0, 8, 0, "STRING"],
+    [18, 8, 0, 9, 0, "IMAGE"]
+  ],
+  "groups": [
+    {"title": "1 · Pick location (globe or address)", "bounding": [40, 60, 400, 780], "color": "#3f789e"},
+    {"title": "2 · Real plate + real sun/weather", "bounding": [460, 60, 380, 700], "color": "#8e44ad"},
+    {"title": "3 · Set & cast (upload your 3 images)", "bounding": [40, 840, 850, 380], "color": "#b58b00"},
+    {"title": "4 · Dress the plate → save", "bounding": [880, 60, 1280, 480], "color": "#417505"}
+  ],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}

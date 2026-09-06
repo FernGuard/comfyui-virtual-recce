@@ -1,0 +1,36 @@
+{
+  "g1": {"class_type": "GeminiImage2Node", "inputs": {
+    "prompt": "Exterior establishing shot of a sci-fi research laboratory, sleek futuristic architecture of glass and brushed metal, glowing accent lighting, dusk sky, cinematic wide angle, photorealistic, highly detailed",
+    "model": "gemini-3-pro-image-preview", "seed": 11, "aspect_ratio": "16:9", "resolution": "1K", "response_modalities": "IMAGE"}},
+  "s1": {"class_type": "SaveImage", "inputs": {"images": ["g1", 0], "filename_prefix": "ref_env_scifi_lab"}},
+
+  "g2": {"class_type": "GeminiImage2Node", "inputs": {
+    "prompt": "Exterior wide establishing shot of a fantasy magic battlefield, scorched earth and broken banners, glowing arcane runes in the ground, a distant besieged castle, dramatic stormy sky with magical light, epic cinematic, photorealistic",
+    "model": "gemini-3-pro-image-preview", "seed": 22, "aspect_ratio": "16:9", "resolution": "1K", "response_modalities": "IMAGE"}},
+  "s2": {"class_type": "SaveImage", "inputs": {"images": ["g2", 0], "filename_prefix": "ref_env_fantasy_battlefield"}},
+
+  "g3": {"class_type": "GeminiImage2Node", "inputs": {
+    "prompt": "Exterior shot of a colorful hotdog food truck parked on a sunny city street, appetizing, detailed menu signage and striped awning, chrome and bright paint, wide angle, photorealistic, highly detailed",
+    "model": "gemini-3-pro-image-preview", "seed": 33, "aspect_ratio": "16:9", "resolution": "1K", "response_modalities": "IMAGE"}},
+  "s3": {"class_type": "SaveImage", "inputs": {"images": ["g3", 0], "filename_prefix": "ref_env_hotdog_truck"}},
+
+  "g4": {"class_type": "GeminiImage2Node", "inputs": {
+    "prompt": "Full-body character reference sheet of a classic handsome heroic man, chiseled jaw, confident relaxed stance, simple neutral modern clothing, standing centered on a flat seamless neutral grey studio background, soft even studio lighting, photorealistic, sharp detail",
+    "model": "gemini-3-pro-image-preview", "seed": 44, "aspect_ratio": "3:4", "resolution": "1K", "response_modalities": "IMAGE"}},
+  "s4": {"class_type": "SaveImage", "inputs": {"images": ["g4", 0], "filename_prefix": "ref_char_hero"}},
+
+  "g5": {"class_type": "GeminiImage2Node", "inputs": {
+    "prompt": "Full-body character reference sheet of a gorgeous elegant woman, confident graceful stance, simple neutral modern clothing, standing centered on a flat seamless neutral grey studio background, soft even studio lighting, photorealistic, sharp detail",
+    "model": "gemini-3-pro-image-preview", "seed": 55, "aspect_ratio": "3:4", "resolution": "1K", "response_modalities": "IMAGE"}},
+  "s5": {"class_type": "SaveImage", "inputs": {"images": ["g5", 0], "filename_prefix": "ref_char_woman"}},
+
+  "g6": {"class_type": "GeminiImage2Node", "inputs": {
+    "prompt": "Full-body character reference sheet of a classic wizard, long flowing grey beard, deep blue robes with subtle star patterns, tall pointed hat, holding a wooden staff, standing centered on a flat seamless neutral grey studio background, soft even studio lighting, photorealistic, sharp detail",
+    "model": "gemini-3-pro-image-preview", "seed": 66, "aspect_ratio": "3:4", "resolution": "1K", "response_modalities": "IMAGE"}},
+  "s6": {"class_type": "SaveImage", "inputs": {"images": ["g6", 0], "filename_prefix": "ref_char_wizard"}},
+
+  "g7": {"class_type": "GeminiImage2Node", "inputs": {
+    "prompt": "Full-body reference of a cat sitting and facing forward, fluffy fur, alert expression, centered on a flat seamless neutral grey studio background, soft even studio lighting, photorealistic, sharp detail",
+    "model": "gemini-3-pro-image-preview", "seed": 77, "aspect_ratio": "3:4", "resolution": "1K", "response_modalities": "IMAGE"}},
+  "s7": {"class_type": "SaveImage", "inputs": {"images": ["g7", 0], "filename_prefix": "ref_char_cat"}}
+}
