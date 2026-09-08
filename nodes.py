@@ -127,7 +127,13 @@ class VRGeocodeAddress:
 # --------------------------------------------------------------------------- #
 
 class VRStreetViewReference:
-    """lat/long + camera -> real street-level reference IMAGE (Street View Static API)."""
+    """lat/long + camera -> real street-level reference IMAGE (Street View Static API).
+
+    If no ground-level Street View exists at the coordinates (remote areas, off-road,
+    private land), it falls back to a top-down Google satellite/aerial frame so the
+    plate is never empty. The `status` output says which source was used.
+    Needs the Street View Static API and, for the fallback, the Maps Static API.
+    """
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -170,8 +176,29 @@ class VRStreetViewReference:
         except Exception:
             raise RuntimeError("Street View metadata: provider returned an invalid response.") from None
         if meta.get("status") != "OK":
-            return (_blank_tensor(width, height),
-                    f"No Street View imagery at this location (status: {meta.get('status')}).")
+            # No ground-level panorama here -> fall back to a top-down satellite/aerial
+            # frame (near-global coverage; needs the Maps Static API enabled on the key).
+            try:
+                sat = _safe_get(
+                    requests,
+                    "https://maps.googleapis.com/maps/api/staticmap",
+                    {"center": loc, "zoom": 18, "size": f"{width}x{height}",
+                     "maptype": "satellite", "key": key},
+                    60,
+                    "Satellite fallback",
+                )
+                if sat.status_code == 200 and "image" in sat.headers.get("Content-Type", ""):
+                    img = Image.open(io.BytesIO(sat.content))
+                    return (_pil_to_tensor(img),
+                            f"No Street View here (status: {meta.get('status')}) - "
+                            f"using SATELLITE / aerial (top-down, zoom 18).")
+                return (_blank_tensor(width, height),
+                        f"No Street View (status: {meta.get('status')}) and satellite fallback "
+                        f"failed (HTTP {sat.status_code}). Enable the Maps Static API on your key.")
+            except Exception as e:  # noqa
+                return (_blank_tensor(width, height),
+                        f"No Street View (status: {meta.get('status')}); "
+                        f"satellite fallback error: {e}.")
 
         r = _safe_get(
             requests,
@@ -523,23 +550,50 @@ class VRLocationPicker:
             loc = top["geometry"]["location"]
             return (float(loc["lat"]), float(loc["lng"]), top.get("formatted_address", address))
 
-        # coordinates drive; best-effort reverse geocode for a human-readable address
-        formatted = f"{latitude:.6f}, {longitude:.6f}"
+        # coordinates drive; derive a meaningful place / terrain descriptor so remote
+        # spots (open ocean, wilderness) still ground the scene, instead of returning
+        # a useless plus-code or bare numbers.
+        place = None
         if key:
             try:
-                response = _safe_get(
+                r = _safe_get(
                     requests,
                     "https://maps.googleapis.com/maps/api/geocode/json",
                     {"latlng": f"{latitude},{longitude}", "key": key},
                     30,
                     "Location Picker reverse geocode",
-                )
-                r = response.json()
-                if r.get("status") == "OK" and r.get("results"):
-                    formatted = r["results"][0].get("formatted_address", formatted)
+                ).json()
+                if r.get("status") == "OK":
+                    # take the first real named place; skip bare plus-code results
+                    # (remote spots) so they fall through to the terrain descriptor
+                    for res in (r.get("results") or []):
+                        if "plus_code" in res.get("types", []):
+                            continue
+                        place = res.get("formatted_address")
+                        if place:
+                            break
             except Exception:  # noqa
                 pass
-        return (float(latitude), float(longitude), formatted)
+
+        if not place:
+            # No named place: classify open ocean vs remote land (timezonefinder is
+            # None over open water) so the model still builds the right environment.
+            ns = "N" if latitude >= 0 else "S"
+            ew = "E" if longitude >= 0 else "W"
+            coord = f"{abs(latitude):.1f}°{ns} {abs(longitude):.1f}°{ew}"
+            terrain = "a remote, uninhabited location"
+            try:
+                _require("timezonefinder")
+                from timezonefinder import TimezoneFinder
+                tz = TimezoneFinder().timezone_at(lat=latitude, lng=longitude)
+                # over open water timezonefinder returns None or a nautical Etc/GMT zone
+                if not tz or tz.startswith("Etc/"):
+                    terrain = "open ocean, far from land"
+            except Exception:  # noqa
+                pass
+            place = f"{terrain} with no street-level imagery, near {coord}"
+
+        return (float(latitude), float(longitude), place)
 
 
 # --------------------------------------------------------------------------- #
@@ -610,10 +664,112 @@ class VRSetAndCast:
 
 
 # --------------------------------------------------------------------------- #
+# Data Panel - a provenance card: real plate + the exact time/sun/weather used
+# --------------------------------------------------------------------------- #
+
+class VRReccePanel:
+    """Compose a single 'data provenance' card: the real Google Street View plate
+    beside the exact location, date/time, real sun and real weather that produced
+    the shot - so it is unmistakable how the image was created. Preview or Save it
+    next to the final render."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "plate": ("IMAGE",),
+        }, "optional": {
+            "location": ("STRING", {"forceInput": True}),
+            "date": ("STRING", {"forceInput": True}),
+            "time": ("STRING", {"forceInput": True}),
+            "light_description": ("STRING", {"forceInput": True}),
+            "weather_description": ("STRING", {"forceInput": True}),
+            "title": ("STRING", {"default": "VIRTUAL RECCE - data provenance"}),
+        }}
+
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("panel",)
+    FUNCTION = "compose"
+    CATEGORY = "Virtual Recce"
+
+    def _font(self, size, bold=False):
+        from PIL import ImageFont
+        names = (["Arial Bold.ttf", "Helvetica.ttc", "DejaVuSans-Bold.ttf"] if bold
+                 else ["Arial.ttf", "Helvetica.ttc", "DejaVuSans.ttf"])
+        dirs = ["/System/Library/Fonts/Supplemental/", "/System/Library/Fonts/",
+                "/Library/Fonts/", "/usr/share/fonts/truetype/dejavu/", ""]
+        for dpath in dirs:
+            for n in names:
+                try:
+                    return ImageFont.truetype(dpath + n, size)
+                except Exception:
+                    pass
+        return ImageFont.load_default()
+
+    def _wrap(self, draw, text, font, maxw):
+        words = (text or "").split()
+        if not words:
+            return ["-"]
+        lines, cur = [], words[0]
+        for w in words[1:]:
+            if draw.textlength(cur + " " + w, font=font) <= maxw:
+                cur += " " + w
+            else:
+                lines.append(cur)
+                cur = w
+        lines.append(cur)
+        return lines
+
+    def compose(self, plate, location="", date="", time="",
+                light_description="", weather_description="",
+                title="VIRTUAL RECCE - data provenance"):
+        from PIL import Image, ImageDraw
+
+        arr = (plate[0].clamp(0, 1).cpu().numpy() * 255).astype(np.uint8)
+        plate_img = Image.fromarray(arr).convert("RGB")
+
+        W, H, pad = 1280, 720, 32
+        card = Image.new("RGB", (W, H), (16, 18, 26))
+        d = ImageDraw.Draw(card)
+
+        # real plate on the left
+        ph = min(H - 2 * pad, int(plate_img.height * 560 / max(1, plate_img.width)))
+        pw = int(plate_img.width * ph / max(1, plate_img.height))
+        px, py = pad, (H - ph) // 2
+        card.paste(plate_img.resize((pw, ph)), (px, py))
+        d.rectangle([px, py, px + pw, py + ph], outline=(60, 80, 120), width=2)
+        tag, tf = "GOOGLE STREET VIEW PLATE", self._font(18, True)
+        d.rectangle([px, py, px + int(d.textlength(tag, font=tf)) + 16, py + 30], fill=(10, 12, 18))
+        d.text((px + 8, py + 6), tag, font=tf, fill=(180, 210, 255))
+
+        # grounding data on the right
+        tx = px + pw + pad
+        tw = W - tx - pad
+        y = pad
+        d.text((tx, y), title, font=self._font(28, True), fill=(127, 209, 255)); y += 50
+        d.line([tx, y, tx + tw, y], fill=(50, 60, 80), width=1); y += 16
+
+        rows = [
+            ("LOCATION", location),
+            ("DATE / TIME", (f"{date}  {time}").strip()),
+            ("SUN (real)", light_description),
+            ("WEATHER (real)", weather_description),
+        ]
+        lab_f, val_f = self._font(16, True), self._font(20)
+        for label, value in rows:
+            d.text((tx, y), label, font=lab_f, fill=(150, 160, 180)); y += 24
+            for line in self._wrap(d, value, val_f, tw):
+                d.text((tx, y), line, font=val_f, fill=(232, 237, 247)); y += 26
+            y += 14
+
+        return (_pil_to_tensor(card),)
+
+
+# --------------------------------------------------------------------------- #
 # registration
 # --------------------------------------------------------------------------- #
 
 NODE_CLASS_MAPPINGS = {
+    "VRReccePanel": VRReccePanel,
     "VRGoogleMapsKey": VRGoogleMapsKey,
     "VRShootTime": VRShootTime,
     "VRLocationPicker": VRLocationPicker,
@@ -626,6 +782,7 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
+    "VRReccePanel": "Recce · Data Panel",
     "VRGoogleMapsKey": "Recce · Google Maps Key",
     "VRShootTime": "Recce · Shoot Time",
     "VRLocationPicker": "Recce · Location Picker (Globe)",

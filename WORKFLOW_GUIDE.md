@@ -2,6 +2,8 @@
 
 This document is the source of truth for the workflow shipped in this repository.
 
+> **This build (proof of concept).** The shipped workflow is **`workflows/VirtualRecce_v3_Story.json`** — a *classic recce*: the **Prompt Builder feeds Nano Banana Pro (`GeminiImage2Node`) directly**, and a **Recce · Data Panel** renders a provenance card (plate + location + date/time + real sun + real weather). Notes below that describe a separate Gemini *text/story* node refer to an optional variant that is **not** in the shipped graph. Additions since the earlier build: a **satellite/aerial fallback** and a **terrain descriptor** (so a pin anywhere still grounds a scene), a **calendar** date picker on Shoot Time, and **two-way address ⇄ globe** sync. Enable **three** Google APIs on your key: **Geocoding**, **Street View Static**, and **Maps Static**. The `examples/` folder ships **7** reference images.
+
 ## Contents
 
 1. [Current state](#1-current-state)
@@ -25,7 +27,7 @@ This document is the source of truth for the workflow shipped in this repository
 | Area | State |
 |---|---|
 | Repository purpose | Installable ComfyUI custom-node pack plus one complete example workflow |
-| Current ComfyUI workflow | `workflows/virtual_recce_story.json` |
+| Current ComfyUI workflow | `workflows/VirtualRecce_v3_Story.json` |
 | ComfyUI workflow count | 1 |
 | Virtual Recce nodes | 9 registered nodes; workflow cleanup did not remove node functionality |
 | Required reference files | 3 PNG files in `examples/` |
@@ -97,7 +99,7 @@ comfyui-virtual-recce/
 │       ├── earth-blue-marble.jpg
 │       └── earth-topology.png
 └── workflows/
-    └── virtual_recce_story.json
+    └── VirtualRecce_v3_Story.json
 ```
 
 Historical drafts, API-format dry runs, reference-generation graphs, and intermediate versions are intentionally excluded.
@@ -281,8 +283,8 @@ These are synthetic test references created for this repository and provided und
 
 Use either method:
 
-- In ComfyUI, choose **Workflow -> Open** and select `workflows/virtual_recce_story.json`.
-- Drag `workflows/virtual_recce_story.json` onto the ComfyUI canvas.
+- In ComfyUI, choose **Workflow -> Open** and select `workflows/VirtualRecce_v3_Story.json`.
+- Drag `workflows/VirtualRecce_v3_Story.json` onto the ComfyUI canvas.
 
 ### 8.2 Confirm there are no missing nodes
 
@@ -437,7 +439,7 @@ Purpose: writes the generated image to the active ComfyUI output directory.
 Filename prefix:
 
 ```text
-VirtualRecce_story
+VirtualRecce_v3
 ```
 
 ## 10. Expected output
@@ -450,7 +452,7 @@ A successful run is intended to produce one cinematic image that:
 - places the two reference characters into the scene;
 - uses the generated short scene as the image prompt.
 
-The final image is written to the ComfyUI output directory with the `VirtualRecce_story` prefix and ComfyUI's normal numeric suffix.
+The final image is written to the ComfyUI output directory with the `VirtualRecce_v3` prefix and ComfyUI's normal numeric suffix.
 
 Intermediate outputs include:
 

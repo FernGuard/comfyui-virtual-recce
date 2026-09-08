@@ -14,10 +14,21 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW_DIR = ROOT / "workflows"
 EXAMPLE_DIR = ROOT / "examples"
-WORKFLOW_NAME = "virtual_recce_story.json"
-EXPECTED_IMAGES = {
+WORKFLOW_NAME = "VirtualRecce_v3_Story.json"
+# the full reference library shipped in examples/
+EXAMPLE_IMAGES = {
     "ref_env_scifi_lab.png",
+    "ref_env_fantasy_battlefield.png",
+    "ref_env_hotdog_truck.png",
     "ref_char_hero.png",
+    "ref_char_woman.png",
+    "ref_char_wizard.png",
+    "ref_char_cat.png",
+}
+# the subset the shipped workflow wires into its three Load Image nodes
+WORKFLOW_IMAGES = {
+    "ref_env_hotdog_truck.png",
+    "ref_char_wizard.png",
     "ref_char_woman.png",
 }
 EXPECTED_RECCE_NODES = {
@@ -25,6 +36,7 @@ EXPECTED_RECCE_NODES = {
     "VRShootTime",
     "VRLocationPicker",
     "VRSetAndCast",
+    "VRReccePanel",
     "VRGeocodeAddress",
     "VRStreetViewReference",
     "VRSunPosition",
@@ -32,7 +44,9 @@ EXPECTED_RECCE_NODES = {
     "VRReccePromptBuilder",
 }
 EXPECTED_WORKFLOW_RECCE_NODES = EXPECTED_RECCE_NODES - {"VRGeocodeAddress"}
-EXPECTED_BUILT_INS = {"LoadImage", "SaveImage", "GeminiNodeV2", "GeminiImage2Node"}
+# classic recce: prompt builder feeds Nano Banana directly (no Gemini text node);
+# a Data Panel preview + segment Notes round out the graph.
+EXPECTED_BUILT_INS = {"LoadImage", "SaveImage", "GeminiImage2Node", "PreviewImage", "Note"}
 TEXT_SUFFIXES = {".py", ".md", ".json", ".js", ".mjs", ".txt", ".yml", ".yaml"}
 
 
@@ -180,11 +194,11 @@ class RepositoryStructureTests(unittest.TestCase):
         names = {path.name for path in WORKFLOW_DIR.glob("*.json")}
         self.assertEqual(names, {WORKFLOW_NAME})
 
-    def test_exactly_three_required_images(self) -> None:
+    def test_example_reference_library(self) -> None:
         names = {path.name for path in EXAMPLE_DIR.glob("*.png")}
-        self.assertEqual(names, EXPECTED_IMAGES)
+        self.assertEqual(names, EXAMPLE_IMAGES)
 
-    def test_all_nine_recce_nodes_remain_registered(self) -> None:
+    def test_all_recce_nodes_remain_registered(self) -> None:
         self.assertEqual(mapping_keys(), EXPECTED_RECCE_NODES)
 
     def test_required_documentation_exists(self) -> None:
@@ -249,20 +263,16 @@ class WorkflowIntegrityTests(unittest.TestCase):
             for node in self.nodes
             if node["type"] == "LoadImage"
         }
-        self.assertEqual(names, EXPECTED_IMAGES)
+        self.assertEqual(names, WORKFLOW_IMAGES)
         for name in names:
             self.assertTrue((EXAMPLE_DIR / name).is_file())
 
     def test_saved_model_and_output_settings(self) -> None:
-        gemini_text = next(node for node in self.nodes if node["type"] == "GeminiNodeV2")
         gemini_image = next(node for node in self.nodes if node["type"] == "GeminiImage2Node")
         save = next(node for node in self.nodes if node["type"] == "SaveImage")
-        self.assertEqual(gemini_text["widgets_values"][1], "Gemini 3.1 Pro")
-        self.assertEqual(gemini_text["widgets_values"][2], "HIGH")
-        self.assertEqual(gemini_text["widgets_values"][5], 32768)
         self.assertEqual(gemini_image["widgets_values"][1], "gemini-3-pro-image-preview")
         self.assertEqual(gemini_image["widgets_values"][4:7], ["16:9", "2K", "IMAGE"])
-        self.assertEqual(save["widgets_values"], ["VirtualRecce_story"])
+        self.assertEqual(save["widgets_values"], ["VirtualRecce_v3"])
 
 
 class PrivacyAndAssetTests(unittest.TestCase):
