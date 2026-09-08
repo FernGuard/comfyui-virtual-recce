@@ -2,6 +2,10 @@
 
 **Virtual Recce** is a ComfyUI custom-node pack for **data-grounded location scouting**. Drop a pin anywhere on Earth and it assembles a cinematic shot grounded in *real* data: a real Google **Street View** plate, the **real sun position** for your date and time, the **real weather**, plus your **set and cast** references — then dresses the plate with an AI image model. It also renders a **data-provenance card** so it is always clear exactly how a shot was built.
 
+![A Virtual Recce shot: a real location dressed and lit by its real sun](docs/example-result.jpg)
+
+*A real Google Street View plate, dressed as a set and relit for the location's real sun and weather — built entirely with the workflow below.*
+
 ![The Virtual Recce workflow in ComfyUI](docs/workflow-overview.png)
 
 ## Start here
